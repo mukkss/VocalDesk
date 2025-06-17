@@ -1,32 +1,7 @@
-import os 
+import os
 from google.adk.agents import Agent
 from google.adk.tools.tool_context import ToolContext
-
-COURSES = [
-    {
-        "course_id": "ai_marketing_platform",
-        "name": "AI Marketing Platform",
-        "price": "$149",
-        "value": "Learn to build AI-powered marketing apps",
-        "duration": "6 weeks"
-    },
-    {
-        "course_id": "voice_ai_builder",
-        "name": "Voice AI Builder",
-        "price": "$199",
-        "value": "Build voice interfaces and assistants",
-        "duration": "4 weeks"
-    },
-    {
-        "course_id": "genai_workshop",
-        "name": "Generative AI Workshop",
-        "price": "$99",
-        "value": "Hands-on with image and text generation",
-        "duration": "3 weeks"
-    }
-]
-
-
+from shared.course_data import COURSES, get_course_id_by_name
 
 def list_courses(tool_context: ToolContext) -> dict:
     """Returns a list of all available courses."""
@@ -40,7 +15,25 @@ def set_course_selection(tool_context: ToolContext, course_id: str) -> dict:
         return {"status": "error", "message": f"Course ID '{course_id}' not found."}
 
     tool_context.state["selected_course_id"] = course_id
-    return {"status": "success", "message": f"Course '{course_id}' selected."}
+    print("DEBUG: selected_course_id set to:", tool_context.state.get("selected_course_id"))
+
+    return {
+        "status": "success",
+        "message": f"Course '{course_id}' selected.",
+        "debug_selected_id": tool_context.state.get("selected_course_id")
+    }
+
+
+def select_course_by_name(tool_context: ToolContext, course_name: str) -> dict:
+    """Allows users to select a course by name instead of ID."""
+    course_id = get_course_id_by_name(course_name)
+    if not course_id:
+        return {
+            "status": "error",
+            "message": f"No course found matching '{course_name}'."
+        }
+
+    return set_course_selection(tool_context, course_id)
 
 
 catalog_agent = Agent(
@@ -48,13 +41,35 @@ catalog_agent = Agent(
     model="gemini-2.0-flash",
     description="Agent responsible for listing and managing course selection.",
     instruction="""
-    You are the Catalog Agent. Your job is to help users browse and select available courses.
-    
-    - Use `list_courses` to show all available courses with details.
-    - If the user mentions a specific course, confirm its availability and use `set_course_selection` to update state.
-    - Be polite and informative. If a course isn’t found, say so clearly.
+        You are the Catalog Agent. Your job is to help users browse and select courses.
 
-    Store the selected course ID in `state.selected_course_id` using the tool.
+        Behaviors:
+        1. If the user asks about **available courses**:
+            - Use the `list_courses` tool to provide a list of all available courses.
+            - Ask if they would like more information about any specific course.  
+
+        2. If the user asks about a **specific course**:
+            - Match their input to a course from `COURSES`.
+            - Provide a detailed description including name, price, description, and support.
+            - Ask if they would like to proceed with purchasing it.
+
+        3. If the user confirms interest in **purchasing** (e.g., "yes", "I want to buy", "confirm purchase", "I want to purchase the course"):
+            - Try to determine the course either from recent mentions or match by name using `get_course_id_by_name()`.
+            - If a match is found, call `set_course_selection(course_id=...)`.
+            - Respond:
+                "Great! I’ve selected the course for you. I’m passing you to our order agent to complete the purchase.Just say "YES" to proceed with the purchase."
+            - This will signal the root agent to hand off to the `order_agent`.
+
+        Make sure to:
+        - Be polite and helpful.
+        - Confirm course availability before selection.
+        - Always update the shared state with `state.selected_course_id`.
+
+        Remember:
+        - Mention our 30-day money-back guarantee.
+        - Use the `list_courses` tool to get available course data.
+        - Use the `set_course_selection` tool with the correct course ID.
+        - Track selection using `tool_context.state["selected_course_id"]`.
     """,
-    tools=[list_courses, set_course_selection]
+    tools=[list_courses, set_course_selection, select_course_by_name],
 )
