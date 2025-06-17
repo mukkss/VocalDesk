@@ -126,7 +126,7 @@ def display_state(
             print("📚 Courses:")
             for course in purchased_courses:
                 if isinstance(course, dict):
-                    course_id = course.get("id", "Unknown")
+                    course_id = course.get("course_id", "Unknown")
                     purchase_date = course.get("purchase_date", "Unknown date")
                     print(f"  - {course_id} (purchased on {purchase_date})")
                 elif course:  # Handle string format for backward compatibility

@@ -54,21 +54,33 @@ async def main_async():
     print("Type 'exit' or 'quit' to end the conversation.\n")
 
     while True:
-        # Get user input
         user_input = input("You: ")
 
-        # Check if user wants to exit
         if user_input.lower() in ["exit", "quit"]:
-            print("Ending conversation. Goodbye!")
+            print("👋 Ending conversation. Goodbye!")
             break
 
-        # Update interaction history with the user's query
+        # Show state before interaction
+        current_session = session_service.get_session(
+        app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID
+    )
+        selected_before = current_session.state.get("selected_course_id", None)
+        print(f"\n🔍 SELECTED COURSE BEFORE: {selected_before}")
+
+        # Add to history
         add_user_query_to_history(
             session_service, APP_NAME, USER_ID, SESSION_ID, user_input
         )
 
-        # Process the user query through the agent
+        # Call agent
         await call_agent_async(runner, USER_ID, SESSION_ID, user_input)
+
+        # Show state after interaction
+        updated_session = session_service.get_session(
+        app_name=APP_NAME, user_id=USER_ID, session_id=SESSION_ID
+    )
+        selected_after = updated_session.state.get("selected_course_id", None)
+        print(f"✅ SELECTED COURSE AFTER: {selected_after}")
 
     # ===== PART 6: State Examination =====
     # Show final session state
